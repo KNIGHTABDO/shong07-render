@@ -1,0 +1,48 @@
+name: Render Shong07 preview
+on:
+  workflow_dispatch:
+    inputs:
+      shards: {description: 'workers', default: '20'}
+      scale: {description: 'remotion scale', default: '0.5'}
+      tag: {description: 'name', default: 'p480'}
+permissions: {contents: read, actions: read}
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs: {matrix: '${{ steps.m.outputs.matrix }}'}
+    steps:
+      - id: m
+        run: echo "matrix=$(python3 -c "import json;print(json.dumps(list(range(min(40,int('${{ inputs.shards }}'))))))")" >> "$GITHUB_OUTPUT"
+  shard:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy: {fail-fast: false, max-parallel: 40, matrix: {i: '${{ fromJSON(needs.plan.outputs.matrix) }}'}}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: 24, cache: npm}
+      - run: npm ci --no-audit --no-fund
+      - env: {I: '${{ matrix.i }}', K: '${{ inputs.shards }}'}
+        run: |
+          RANGE=$(python3 -c "import os;n=765;k=min(int(os.environ['K']),40);i=int(os.environ['I']);print(f'{n*i//k}-{n*(i+1)//k-1}')")
+          npx remotion render src/index.tsx Shong07 "out/chunk_$(printf %02d $I).mp4" --frames="$RANGE" --muted \
+            --gl=swangle --concurrency=$(nproc) --scale=${{ inputs.scale }} --codec=h264 --crf=12 --pixel-format=yuv420p 2>&1 | tr '\r' '\n' | grep -vE '^\s*$' | tail -3
+      - uses: actions/upload-artifact@v4
+        with: {name: 'chunk-${{ matrix.i }}', path: out/chunk_*.mp4, if-no-files-found: error, retention-days: 3, compression-level: 0}
+  join:
+    needs: shard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg >/dev/null
+      - uses: actions/download-artifact@v4
+        with: {pattern: chunk-*, path: chunks, merge-multiple: true}
+      - run: |
+          mkdir -p out; ls chunks/*.mp4 | sort | sed "s|^|file '$PWD/|;s|$|'|" > list.txt
+          ffmpeg -nostdin -v error -y -f concat -safe 0 -i list.txt -i public/s07/audio.wav -filter_complex \
+            "[0:v]format=gbrp,split[a][b];[b]curves=all='0/0 0.6/0.05 1/1',gblur=sigma=10,colorchannelmixer=rr=1.1:gg=.95:bb=.85[h];[a][h]blend=all_mode=screen:all_opacity=.45,scale=854:480:flags=lanczos,format=yuv420p[v]" \
+            -map "[v]" -map 1:a -c:v libx264 -crf 18 -preset slow -c:a aac -b:a 192k -shortest -movflags +faststart out/${{ inputs.tag }}.mp4
+          ffprobe -v error -show_entries format=duration:stream=width,height,nb_frames -of compact out/${{ inputs.tag }}.mp4
+      - uses: actions/upload-artifact@v4
+        with: {name: '${{ inputs.tag }}', path: 'out/${{ inputs.tag }}.mp4', retention-days: 30}

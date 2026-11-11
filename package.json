@@ -1,0 +1,6 @@
+{
+  "name": "town-edit-kit", "version": "1.0.0", "private": true, "type": "module",
+  "scripts": {"typecheck": "tsc --noEmit", "test": "node --experimental-strip-types --test tests/*.test.ts", "studio": "remotion studio"},
+  "dependencies": {"@remotion/cli": "4.0.532", "@remotion/fonts": "4.0.532", "remotion": "4.0.532", "react": "19.2.0", "react-dom": "19.2.0"},
+  "devDependencies": {"@types/node": "22.19.0", "@types/react": "19.2.2", "typescript": "5.9.3"}
+}
