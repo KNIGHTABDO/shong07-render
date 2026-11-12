@@ -391,11 +391,11 @@ const Outro: React.FC<{t: number}> = ({t}) => {
     const gr = ss(span(t, HT.rel, 24.45));
     const dim = 1 - ein(span(t, O.dusk - .3, O.dusk + .08));
     return <AbsoluteFill style={{background: '#000'}}>
-      <AbsoluteFill style={{filter: `brightness(${mix(.9, .62, gr) * dim}) saturate(${mix(.5, .78, gr)}) contrast(1.08)`}}>
+      <AbsoluteFill style={{filter: `brightness(${mix(.95, 1.12, gr) * dim}) saturate(${mix(.5, .95, gr)}) contrast(1.04)`}}>
         {smp.map((c, j) => <Img key={j} src={seq('p_reveal', c.src)} style={{position: 'absolute', left: 0, top: 0, width: W, height: H, transformOrigin: '0 0',
           transform: c.tr, opacity: 1 / (j + 1)}}/>)}
         <AbsoluteFill style={{background: '#ff4a78', mixBlendMode: 'color', opacity: .5 * (1 - gr)}}/>
-        <AbsoluteFill style={{background: '#0b1630', mixBlendMode: 'multiply', opacity: .35 * gr}}/>
+        <AbsoluteFill style={{background: '#1a6f9a', mixBlendMode: 'soft-light', opacity: .3 * gr}}/>
       </AbsoluteFill>
     </AbsoluteFill>;
   };
