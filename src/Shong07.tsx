@@ -223,7 +223,7 @@ const Intro: React.FC<{t: number}> = ({t}) => {
     const top = -k * TROW + fly, Yt = top - CY, Yb = top + H - CY;
     if (Yt * sn + camZ > PERS - 60) continue;                 // passed under the camera
     const depth = -(Yb * sn + camZ);
-    const op = 1 - span(depth, 4500, 13500);
+    const op = (1 - span(depth, 4500, 13500)) * (k === 0 && c === 0 ? 1 : ss(span(t, I.click + .05, I.click + .45)));
     if (op <= 0) continue;
     const hand = k === 0 && c === 0;
     tiles.push(<div key={`${k}_${c}`} style={{position: 'absolute', left: c * TCOL, top: -k * TROW, width: W, height: H, opacity: op, overflow: 'hidden', borderRadius: 10 * tip}}>
@@ -263,8 +263,8 @@ const Outro: React.FC<{t: number}> = ({t}) => {
     const v = u < 1 ? 3 * Math.pow(1 - u, 2) * 1.6 * H / (.42 * 24) : 0;   // px per frame
     const blur = v > 6 ? [0, 1, 2, 3, 4, 5, 6].map(j => -v * .9 * j / 6) : [0];
     const src = 1.0 + (t - O.whip);
-    const z = 1 + .07 * span(t, O.dark, O.dusk);
-    const dim = 1 - .45 * ein(span(t, O.dusk - .35, O.dusk + .3));
+    const z = 1 + .07 * span(t, O.dark, O.dusk) + .1 * ein(span(t, O.dusk - .3, O.dusk + .08));
+    const dim = 1 - ein(span(t, O.dusk - .3, O.dusk + .08));
     return <AbsoluteFill style={{background: '#000'}}>
       <AbsoluteFill style={{transformOrigin: `${.55 * W}px ${.33 * H}px`, transform: `scale(${z})`, filter: `brightness(${.62 * dim + .38 * whiteD(t) * 0}) saturate(.78) contrast(1.08)`}}>
         {blur.map((d, j) => <AbsoluteFill key={j} style={{opacity: 1 / (j + 1)}}>
@@ -276,14 +276,17 @@ const Outro: React.FC<{t: number}> = ({t}) => {
     </AbsoluteFill>;
   };
   if (t < O.dusk - .3) return pr(t);
+  const lb = span(t, O.dusk - .3, O.dusk - .15);
   // dusk: highlights (sky, horizon) emerge first from black
   const e = eout(span(t, O.dusk - .3, O.dusk + .6));
   const z = 1 + .06 * span(t, O.dusk, O.card);
   return <AbsoluteFill style={{background: '#000'}}>
-    {t < O.dusk + .3 && pr(t)}
-    <AbsoluteFill style={{transformOrigin: `${.5 * W}px ${.42 * H}px`, transform: `scale(${z})`, mixBlendMode: t < O.dusk + .3 ? 'lighten' : 'normal'}}>
+    {t < O.dusk + .1 && pr(t)}
+    <AbsoluteFill style={{transformOrigin: `${.5 * W}px ${.42 * H}px`, transform: `scale(${z})`, mixBlendMode: t < O.dusk + .1 ? 'lighten' : 'normal'}}>
       <Seq name="amer_d" src={.2 + (t - O.dusk)} filter={`brightness(${mix(.12, 1.1, e)}) contrast(${mix(2.6, 1.02, e)}) saturate(${mix(.6, 1, e)})`}/>
     </AbsoluteFill>
+    {t < O.dusk + .1 && <><div style={{position: 'absolute', left: 0, right: 0, top: 0, height: 54, background: '#000', opacity: lb}}/>
+      <div style={{position: 'absolute', left: 0, right: 0, bottom: 0, height: 54, background: '#000', opacity: lb}}/></>}
   </AbsoluteFill>;
 };
 
@@ -388,10 +391,10 @@ export const Shong07: React.FC = () => {
       <AbsoluteFill style={{background: '#010208', opacity: fieldDark * .92}}/>
     </AbsoluteFill>}
     {t > 8.65 && t < T.iris + .2 && <Shards t={t} navy={navy}/>}
-    {t > T.iris - .42 && t < T.iris + .18 && (() => {
-      const u = span(t, T.iris - .42, T.iris + .18), sz = 180 * Math.pow(26, ein(u)), rot = 20 + 70 * u;
+    {t > T.iris - .5 && t < T.iris + .16 && (() => {
+      const u = span(t, T.iris - .5, T.iris + .1), sz = 200 * Math.pow(40, Math.pow(u, 1.6)), rot = 20 + 70 * u;
       return <div style={{position: 'absolute', left: CX - sz / 2, top: CY * .96 - sz * .4, width: sz, height: sz * .8, mixBlendMode: 'screen',
-        opacity: span(t, T.iris - .42, T.iris - .3) * (1 - span(t, T.iris + .02, T.iris + .18)), transform: `rotate(${rot}deg)`, clipPath: `polygon(${POLY[0]})`,
+        opacity: span(t, T.iris - .5, T.iris - .38) * (1 - span(t, T.iris + .04, T.iris + .16)), transform: `rotate(${rot}deg)`, clipPath: `polygon(${POLY[0]})`,
         background: `linear-gradient(${rot}deg, rgba(235,248,255,.95), rgba(40,170,190,.45) 45%, rgba(220,245,255,.85))`}}/>;
     })()}
     {/* two glints that become the eye's catchlights */}
