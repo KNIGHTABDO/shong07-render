@@ -9,7 +9,7 @@
 // Perf rule: no CSS blur / backdrop-filter. Defocus = pre-baked *_b assets. Halation/softening = ffmpeg post pass.
 import React from 'react';
 import {AbsoluteFill, Audio, Img, staticFile, useCurrentFrame} from 'remotion';
-import {FC_EYES, SCREEN} from './s07data';
+import {FC_EYES, FC_LOCK, SCREEN} from './s07data';
 
 export const FPS = 24, DUR_F = 765;
 const W = 1920, H = 1080, CX = W / 2, CY = H / 2;
@@ -102,19 +102,29 @@ const GEM0 = 9.35, SPARK = [10.05, 10.65, 10.98, 11.57];
 type Pt = [number, number];
 const Gem: React.FC<{t: number; aSrcB: number; plqZ: number; p0: Pt}> = ({t, aSrcB, plqZ, p0}) => {
   const shrink = io(span(t, GEM0, 10.45)), dive = io(span(t, 11.45, 12.1));
-  const R = (t < 11.45 ? mix(1400, 340, shrink) : mix(340, 112, dive)) * (1 + .025 * Math.sin((t - GEM0) * 5.2) * (1 - dive));
+  const R = (t < 11.45 ? mix(1400, 340, shrink) : mix(340, 85, dive)) * (1 + .025 * Math.sin((t - GEM0) * 5.2) * (1 - dive));
   const gx = mix(CX, p0[0], dive), gy = mix(CY * .96, p0[1], dive);
   const rot = (18 * (t - GEM0) + 40 * dive) * Math.PI / 180;
   const k = ss(span(t, GEM0, 9.8)) * (1 - io(span(t, 11.7, 12.1)));          // refraction strength: 0 at both ends (seamless)
-  const em = ss(span(t, 11.55, 11.98));                                         // plaque → eye inside the facets
+  const em = ss(span(t, 11.3, 11.72));                                         // plaque → eye inside the facets
   const eSrc = Math.max(0, EYE_S0 + (t - T.iris) * EYE_V);
-  const P = (a: number, r: number): Pt => [gx + Math.cos(a) * r, gy + Math.sin(a) * r];
+  const yaw = (16 * Math.sin((t - GEM0) * 2.1) + 6) * (1 - dive) * Math.PI / 180, fy = Math.cos(yaw);   // slow Y-tumble → foreshortening
+  const P = (a: number, r: number): Pt => [gx + Math.cos(a) * r * fy, gy + Math.sin(a) * r];
   const Tv = (i: number) => P(rot + i * Math.PI / 4, R * .52), Ov = (i: number) => P(rot + (i + .5) * Math.PI / 4, R);
   const fac: {pts: Pt[]; kind: number; a: number}[] = [{pts: [0, 1, 2, 3, 4, 5, 6, 7].map(Tv), kind: 0, a: 0}];
   for (let i = 0; i < 8; i++) {
     fac.push({pts: [Tv(i), Tv(i + 1), Ov(i)], kind: 1, a: rot + (i + .5) * Math.PI / 4});
     fac.push({pts: [Ov(i - 1), Tv(i), Ov(i)], kind: 2, a: rot + i * Math.PI / 4});
   }
+  // each edge glints only when it faces the travelling light (selective, varied width)
+  const lA = rot * 2.6 + 1.2 + (t - GEM0) * .9;
+  const eSeen = new Set<string>(), edges: [Pt, Pt, number][] = [];
+  fac.forEach(fc => fc.pts.forEach((a, i) => {
+    const b = fc.pts[(i + 1) % fc.pts.length], key = [a, b].map(p => p.map(v => v.toFixed(0)).join(':')).sort().join('|');
+    if (eSeen.has(key)) return; eSeen.add(key);
+    const ang = Math.atan2(b[1] - a[1], b[0] - a[0]);
+    edges.push([a, b, Math.pow(Math.abs(Math.cos(ang - lA)), 6) * (.55 + .45 * hash(edges.length * 1.7))]);
+  }));
   const content = <>
     {em < 1 && <AbsoluteFill style={{transform: `translate(${(gx - PLQ[0]) * shrink}px, ${(gy - PLQ[1]) * shrink}px)`, opacity: 1 - em}}>
       <Seq name="plqB" src={aSrcB} z={plqZ} ox={.47} oy={.3} filter={`saturate(.3) contrast(1.05) brightness(${mix(1.3, .95, shrink)})`}/>
@@ -146,10 +156,11 @@ const Gem: React.FC<{t: number; aSrcB: number; plqZ: number; p0: Pt}> = ({t, aSr
       </AbsoluteFill>;
     })}
     <svg width={W} height={H} style={{position: 'absolute', inset: 0, opacity: edgeA}}>
-      {fac.map((fc, i) => <polygon key={i} points={fc.pts.map(p => p.join(',')).join(' ')} fill="none" stroke="rgba(210,235,255,.18)" strokeWidth={5} strokeLinejoin="round"/>)}
-      {fac.map((fc, i) => <polygon key={`b${i}`} points={fc.pts.map(p => p.join(',')).join(' ')} fill="none" stroke="rgba(245,250,255,.8)" strokeWidth={1.3} strokeLinejoin="round"/>)}
+      {edges.map(([a, b, g], i) => <line key={i} x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke="rgba(200,230,255,1)" strokeOpacity={.04 + .22 * g} strokeWidth={2 + 6 * g} strokeLinecap="round"/>)}
+      {edges.map(([a, b, g], i) => <line key={`b${i}`} x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke="#f6faff" strokeOpacity={.1 + .85 * g} strokeWidth={.7 + 1.6 * g} strokeLinecap="round"/>)}
     </svg>
-    {SPARK.map((s, j) => {const v = Ov(j * 3 + 1); return <Glint key={j} x={v[0]} y={v[1]} a={pulse(t, s, .03, .28)} s={mix(160, 90, shrink)}/>;})}
+    {SPARK.map((s, j) => {const v = Ov(j * 3 + 1), sz = [1.25, .6, .95, .45][j], dur = [.32, .18, .26, .15][j];
+      return <Glint key={j} x={v[0]} y={v[1]} a={pulse(t, s, .025, dur) * [1, .75, .9, .7][j]} s={mix(170, 95, shrink) * sz}/>;})}
     <Glint x={gx} y={gy} a={pulse(t, 11.91, .03, .22) * 1.2} s={260}/>
   </AbsoluteFill>;
 };
@@ -252,6 +263,10 @@ const Ruler: React.FC<{t: number; yi: number}> = ({t, yi}) => {
 // eye-locked years montage: cuts on the vocal hits, one accelerating push, punch on every cut
 const MONT: [number, number][] = [[4.25, 2018], [5.61, 2019], [5.96, 2020], [6.49, 2021], [6.67, 2022], [7.13, 2023], [7.67, 2024], [7.84, 2026]];
 const EYE_Y = .40 * H;
+// per-year eye-lock (CSS matrix C,S,tx,ty at origin 0 0; YuNet-measured) → both eyes land on (.435,.40)/(.565,.40)
+const YLOCK: Record<number, number[]> = {2019: [.9886, .0034, 0, 6.8], 2020: [1.0943, .001, -87.7, -45.1], 2021: [.9513, -.0661, 4.8, 78.8],
+  2022: [1.0049, .046, 31.4, -73.6], 2023: [1.1606, .0093, -138.9, -90.0], 2024: [1.0522, -.0927, -111.7, 62.0], 2026: [1.0054, -.0562, -32.4, 52.8]};
+const mtx = (m: number[]) => `matrix(${m[0]},${m[1]},${-m[1]},${m[0]},${m[2]},${m[3]})`;
 const montZ = (t: number) => {
   let z = 1 + .2 * ein(span(t, I.click, 7.84)) + 1.6 * ein(span(t, 7.86, T.a0));
   for (const [c] of MONT) if (t >= c) z *= 1 + .06 * Math.exp(-(t - c) / .16);
@@ -293,9 +308,14 @@ const Intro: React.FC<{t: number}> = ({t}) => {
   const white = ein(span(t, 7.9, T.a0));
   const lx = hash(ci * 3.3 + 1) > .5 ? 12 : 88;
   return <AbsoluteFill style={{background: '#000', overflow: 'hidden'}}>
-    {Array.from({length: n}, (_, j) => <Img key={j} src={C(`years/y${c[1]}.jpg`)} style={{position: 'absolute', left: 0, top: 0, width: W, height: H,
-      transformOrigin: `${CX}px ${EYE_Y}px`, transform: `scale(${z * Math.exp(-v * 1.8 * j / Math.max(1, n - 1))})`, opacity: 1 / (j + 1),
-      filter: `saturate(.72) contrast(1.08) brightness(${1 + .65 * flash})`}}/>)}
+    {Array.from({length: n}, (_, j) => {
+      const live = c[1] === 2018, fi = clamp(Math.round((t - c[0]) * 24), 0, FC_LOCK.length - 1);
+      const src = live ? C(`y18/fc/${String(fi + 1).padStart(3, '0')}.jpg`) : C(`years/y${c[1]}.jpg`);
+      return <AbsoluteFill key={j} style={{transformOrigin: `${CX}px ${EYE_Y}px`, transform: `scale(${1.1 * z * Math.exp(-v * 1.8 * j / Math.max(1, n - 1))})`, opacity: 1 / (j + 1)}}>
+        <Img src={src} style={{position: 'absolute', left: 0, top: 0, width: W, height: H, transformOrigin: '0 0', transform: mtx(live ? FC_LOCK[fi] : YLOCK[c[1]]),
+          filter: `saturate(.72) contrast(1.08) brightness(${1 + .65 * flash})`}}/>
+      </AbsoluteFill>;
+    })}
     <AbsoluteFill style={{background: '#1a6f9a', mixBlendMode: 'soft-light', opacity: .4}}/>
     <AbsoluteFill style={{background: `radial-gradient(circle at ${lx}% 35%, rgba(255,190,120,.85) 0%, rgba(255,120,60,.3) 25%, transparent 55%)`,
       mixBlendMode: 'screen', opacity: .55 * flash}}/>
@@ -383,7 +403,7 @@ export const Shong07: React.FC = () => {
   const gaSrc = clamp(t - 14.95, 0, .99);
   const reflW = 230 * PR / PR_END, reflA = mix(.5, 1, span(t, 14.85, T.pupil));
   // two shard glints → catchlights (aimed at the eye's opening pupil)
-  const p0x = lerpTab(PUP, EYE_S0, 1) * W, p0y = lerpTab(PUP, EYE_S0, 2) * H, p0r = lerpTab(PUP, EYE_S0, 3);
+  const p0x = .47 * W, p0y = .483 * H, p0r = lerpTab(PUP, EYE_S0, 3);
   const gl = io(span(t, T.dark - .2, T.iris + .05));
   const catchA = span(t, T.dark - .3, T.dark) * (1 - span(t, T.iris + .3, T.iris + .9));
 
