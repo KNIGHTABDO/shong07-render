@@ -1,0 +1,61 @@
+name: Render Shong07 final
+on:
+  workflow_dispatch:
+    inputs:
+      shards: {description: 'workers (max 40)', default: '40'}
+permissions: {contents: read, actions: read}
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs: {matrix: '${{ steps.m.outputs.matrix }}'}
+    steps:
+      - id: m
+        run: echo "matrix=$(python3 -c "import json;print(json.dumps(list(range(min(40,int('${{ inputs.shards }}'))))))")" >> "$GITHUB_OUTPUT"
+  shard:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy: {fail-fast: false, max-parallel: 40, matrix: {i: '${{ fromJSON(needs.plan.outputs.matrix) }}'}}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: 24, cache: npm}
+      - run: npm ci --no-audit --no-fund
+      - env: {I: '${{ matrix.i }}', K: '${{ inputs.shards }}'}
+        run: |
+          RANGE=$(python3 -c "import os;n=765;k=min(int(os.environ['K']),40);i=int(os.environ['I']);print(f'{n*i//k}-{n*(i+1)//k-1}')")
+          npx remotion render src/index.tsx Shong07 "out/chunk_$(printf %02d $I).mp4" --frames="$RANGE" --muted \
+            --gl=swangle --concurrency=$(nproc) --scale=1.125 --codec=h264 --crf=10 --pixel-format=yuv420p 2>&1 | tr '\r' '\n' | grep -vE '^\s*$' | tail -3
+          ls -la out/chunk_*.mp4
+      - uses: actions/upload-artifact@v4
+        with: {name: 'chunk-${{ matrix.i }}', path: out/chunk_*.mp4, if-no-files-found: error, retention-days: 3, compression-level: 0}
+  join:
+    needs: shard
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg >/dev/null
+      - uses: actions/download-artifact@v4
+        with: {pattern: chunk-*, path: chunks, merge-multiple: true}
+      - name: Join + bloom grade (same as previews, blur scaled to 2160 wide) into the master
+        run: |
+          mkdir -p out; ls chunks/chunk_*.mp4 | sort -V | sed "s|^|file '$PWD/|;s|$|'|" > list.txt; cat list.txt | wc -l
+          ffmpeg -nostdin -v error -y -f concat -safe 0 -i list.txt -i public/s07/audio.wav -filter_complex \
+            "[0:v]format=gbrp,split[a][b];[b]curves=all='0/0 0.6/0.05 1/1',gblur=sigma=22.5,colorchannelmixer=rr=1.1:gg=.95:bb=.85[h];[a][h]blend=all_mode=screen:all_opacity=.45,format=yuv420p[v]" \
+            -map "[v]" -map 1:a -c:v libx264 -crf 10 -preset slow -c:a aac -b:a 320k -ar 48000 -shortest -movflags +faststart out/final_master_2160x1215.mp4
+          ffprobe -v error -show_entries format=duration:stream=width,height,nb_frames -of compact out/final_master_2160x1215.mp4
+      - uses: actions/upload-artifact@v4
+        with: {name: master-2160x1215, path: out/final_master_2160x1215.mp4, compression-level: 0, retention-days: 30}
+      - run: bash tools/finish_tiktok.sh
+      - uses: actions/upload-artifact@v4
+        with: {name: tiktok-4k-patched, path: out/final_tiktok_4k_patched.mp4, compression-level: 0, retention-days: 30}
+      - uses: actions/upload-artifact@v4
+        with: {name: tiktok-4k-plain, path: out/final_tiktok_4k_plain.mp4, compression-level: 0, retention-days: 30}
+      - uses: actions/upload-artifact@v4
+        with: {name: tiktok-1080, path: out/final_tiktok_1080x1920.mp4, compression-level: 0, retention-days: 30}
+      - name: Verify patched == plain frames
+        run: |
+          a=$(ffmpeg -v error -i out/final_tiktok_4k_plain.mp4 -map 0:v -f framemd5 - | grep -v '^#' | awk -F, '{print $6}' | md5sum)
+          b=$(ffmpeg -v quiet -i out/final_tiktok_4k_patched.mp4 -map 0:v -f framemd5 - | grep -v '^#' | awk -F, '{print $6}' | md5sum)
+          echo "plain $a / patched $b"; [ "$a" = "$b" ]
