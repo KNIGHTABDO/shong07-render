@@ -175,7 +175,7 @@ const PUP_END = [lerpTab(PUP, 3.9, 1), lerpTab(PUP, 3.9, 2)];
 const PR_END = lerpTab(PUP, 3.9, 3) * 1.06 * 3.4 * 1.42 * 1.05;      // pupil radius at the cut (passes the frame corners)
 
 // ---------- A→B: inside the diamond (push into the plaque's facet → interior → pull back → falling stones → iris ring) ----------
-const DI = [.47 * W, .483 * H];                                       // his pupil at 12.15
+const DI = [.43 * W, .505 * H];                                       // his pupil at 12.15
 const rnd = (i: number) => {const x = Math.sin(i * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x);};
 const RING_N = 10, T_RING = 10.85;
 const DROPS = Array.from({length: 24}, (_, i) => {
@@ -513,6 +513,9 @@ const Outro: React.FC<{t: number}> = ({t}) => {
   const z = 1 + .06 * span(t, O.dusk, O.card);
   return <AbsoluteFill style={{background: '#000'}}>
     {t < WIPES[2][1] && days(t)}
+    {t < WIPES[2][1] && (bh => <>{/* letterbox closes in across the full width as the last bar crosses, matching the dusk 2.35 frame */}
+      <div style={{position: 'absolute', left: 0, right: 0, top: 0, height: bh, background: '#050505'}}/>
+      <div style={{position: 'absolute', left: 0, right: 0, bottom: 0, height: bh, background: '#050505'}}/></>)(94 * io(span(t, WIPES[2][0] - .1, WIPES[2][0] + .2)))}
     <AbsoluteFill style={t < WIPES[2][1] ? clipL(wipeX(t, 2)) : {}}>
       <AbsoluteFill style={{transformOrigin: `${.5 * W}px ${.42 * H}px`, transform: `scale(${z})`}}>
         <Seq name="amer_d" src={.2 + (t - O.dusk)} filter={`brightness(${mix(.75, 1.1, e)}) contrast(${mix(1.25, 1.02, e)}) saturate(${mix(1.25, 1, e)})`}/>
@@ -555,7 +558,7 @@ export const Shong07: React.FC = () => {
   const tealX = ss(span(t, 9.8, 11.0)), kalA = .24 * (1 - span(t, 9.85, 10.4));
   const intB = mix(1, .5, ss(span(t, 10.6, 11.8)));
   const revR = 60 * Math.pow(1500 / 60, io(span(t, 11.0, 12.05)));      // the centre facet opens into his eye
-  const revA = ss(span(t, 10.95, 11.25)), rimA = .75 * revA * (1 - span(t, 11.75, 12.05));
+  const revA = ss(span(t, 10.95, 11.25)), rimA = .4 * revA * (1 - span(t, 11.75, 12.05));
   const preZ = t < T.iris ? mix(.7, 1, eout(span(t, 11.0, T.iris))) : 1;
   const eyeSrc = clamp(EYE_S0 + (t - T.iris) * EYE_V, 0, 3.95);
   const eIn = 1, eG = 1;                       // the ring of stones dissolves into the iris
@@ -564,7 +567,7 @@ export const Shong07: React.FC = () => {
   const pcx = lerpTab(PUP, eyeSrc, 1), pcy = lerpTab(PUP, eyeSrc, 2), pr = lerpTab(PUP, eyeSrc, 3);
   // hard zoom punches on the three onsets, then an accelerating push until the pupil edge leaves the frame at 15.65
   const zStep = t < 14.85 ? 1 : t < 15.1 ? 1.5 : t < 15.5 ? 2.25 : 3.4;
-  const eyeZ = preZ * mix(1.0, 1.06, span(t, T.iris, 14.85)) * zStep * (1 + .05 * span(t, 14.85, 15.5)) * mix(1, 1.42, (u => .85 * (2 * u - u * u) + .15 * u)(span(t, 15.5, T.pupil)));
+  const eyeZ = mix(1.0, 1.06, span(t, T.iris, 14.85)) * zStep * (1 + .05 * span(t, 14.85, 15.5)) * mix(1, 1.42, (u => .85 * (2 * u - u * u) + .15 * u)(span(t, 15.5, T.pupil)));
   const showEye = t > 10.95 && t < T.pupil;
   const PX = pcx * W, PY = pcy * H, PR = pr * eyeZ;
   const hit = BEATS.reduce((a, h) => a + pulse(t, h, .03, .18), 0);
@@ -650,8 +653,8 @@ export const Shong07: React.FC = () => {
     </AbsoluteFill>}
 
     {/* ===== B: eye, cyan-teal; the 2018 screen reflected in the pupil ===== */}
-    {showEye && <AbsoluteFill style={t < 12.05 ? {opacity: revA, WebkitMaskImage: `radial-gradient(circle ${revR}px at ${DI[0]}px ${DI[1]}px, #000 78%, transparent 100%)`,
-      maskImage: `radial-gradient(circle ${revR}px at ${DI[0]}px ${DI[1]}px, #000 78%, transparent 100%)`} : {}}>
+    {showEye && <AbsoluteFill style={t < 12.05 ? {opacity: revA, WebkitMaskImage: `radial-gradient(circle ${revR}px at ${DI[0]}px ${DI[1]}px, #000 55%, transparent 100%)`,
+      maskImage: `radial-gradient(circle ${revR}px at ${DI[0]}px ${DI[1]}px, #000 55%, transparent 100%)`, transformOrigin: `${DI[0]}px ${DI[1]}px`, transform: `scale(${preZ})`} : {}}>
       {Array.from({length: eN}, (_, j) => <Seq key={j} name="eyeP" src={eyeSrc} z={eyeZ * (1 + eSpread * j / Math.max(1, eN - 1))} ox={pcx} oy={pcy} style={{opacity: 1 / (j + 1)}}
         filter={t < T.iris ? `saturate(${mix(1, .3, eG)}) contrast(${mix(1, 1.12, eG)}) brightness(.82) blur(${4 * (1 - span(t, 11.3, 11.9))}px)`
           : `saturate(.3) contrast(1.12) brightness(${.82 + .18 * hit})`}/>)}
@@ -672,7 +675,7 @@ export const Shong07: React.FC = () => {
     </AbsoluteFill>}
 
     {rimA > .01 && <div style={{position: 'absolute', left: DI[0] - revR * .9, top: DI[1] - revR * .9, width: revR * 1.8, height: revR * 1.8, borderRadius: '50%',
-      boxShadow: `0 0 ${12 + revR * .08}px ${2 + revR * .02}px rgba(190,250,255,.8), inset 0 0 ${10 + revR * .1}px rgba(150,240,255,.6)`, mixBlendMode: 'screen', opacity: rimA}}/>}
+      boxShadow: `0 0 ${30 + revR * .2}px ${revR * .04}px rgba(170,245,255,.55), inset 0 0 ${30 + revR * .25}px rgba(150,240,255,.45)`, mixBlendMode: 'screen', opacity: rimA}}/>}
     {flash > .005 && <AbsoluteFill style={{background: 'radial-gradient(circle at 47% 30%, #fff 0%, #fff 45%, #eef4ff 100%)', opacity: flash}}/>}
     {/* ===== B2: the 2018 bedroom; the reflection is now the monitor ===== */}
     {showRoom && <AbsoluteFill>
