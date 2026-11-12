@@ -9,7 +9,7 @@
 // Perf rule: no CSS blur / backdrop-filter. Defocus = pre-baked *_b assets. Halation/softening = ffmpeg post pass.
 import React from 'react';
 import {AbsoluteFill, Audio, Img, staticFile, useCurrentFrame} from 'remotion';
-import {FC_EYES, FC_LOCK, SCREEN} from './s07data';
+import {FC_EYES, FC_LOCK, PR_EYES, SCREEN} from './s07data';
 
 export const FPS = 24, DUR_F = 765;
 const W = 1920, H = 1080, CX = W / 2, CY = H / 2;
@@ -199,7 +199,14 @@ const DUST = Array.from({length: 16}, (_, i) => ({x: hash(i * 4.1), y: hash(i * 
 // ---------- 0: intro — 2018 webcam → floor of his faces, one row per year, flown over → white ----------
 const I = {glow: .25, open: 1.05, tag: 1.6, click: 4.25, up: 7.3};
 // ---------- D: outro — whip into the prison-series studio (now), dusk cowboy emerges from the dark, card ----------
-const O = {whip: 24.5, dark: 25.0, dusk: 26.25, card: 29.7, end: 31.875};
+// "The Hatch": lights out → slam on the kick (23.75) → eyes in the slot go live (prison) → slot opens + pull back (24.01) → land (24.688)
+const HT = {lo: 23.42, slam: 23.75, rel: 24.01, land: 24.688};
+const hEase = (u: number) => 1 - Math.pow(1 - Math.pow(clamp(u), 1.6), 3);
+const RS = 1.03;                                                    // ruler scale frozen at the slam
+const SLOT = {x: CX + 5 * RS, y: CY - 7.7 * RS, ioc: 205 * RS};      // eye midpoint + spacing of the 2026 strip in the slot
+const shakeY = (t: number) => t < HT.slam ? 0 : 6 * Math.exp(-(t - HT.slam) / .12) * Math.cos((t - HT.slam) * 70);
+const rollAt = (t: number) => t < HT.slam ? -5 - 4 * io(span(t, 22.6, 23.6)) : mix(-9, 0, eout(span(t, HT.slam, HT.slam + 2 / 24)));
+const O = {whip: 23.75, dark: 25.0, dusk: 26.25, card: 29.7, end: 31.875};
 
 // ---------- C: ruler ----------
 const YEARS = [2018, 2019, 2020, 2021, 2022, 2023, 2024, 2026];
@@ -210,25 +217,25 @@ const SW = 900, SH = SW * 250 / 1100;                 // eye-strip window in the
 
 const Ruler: React.FC<{t: number; yi: number}> = ({t, yi}) => {
   const slide = eout(span(t, T.ruler, 20.7));
-  const taut = pulse(t, T.taut, .03, .22);
-  const roll = -5 - 34 * io(span(t, T.roll - .1, 23.6));
-  const grow = ein(span(t, T.fill, T.white));
+  const taut = pulse(t, T.taut, .03, .22) + pulse(t, HT.slam, .02, .22);
+  const roll = rollAt(t), slam = t >= HT.slam ? 1 : 0, bodyA = 1 - span(t, HT.slam, HT.rel);
+  const grow = 0;
   const sc = mix(1, 14, grow) * (1 + .03 * span(t, T.ruler, T.fill));
   const yr = 2018 + (yi < 6 ? yi : 6 + (yi - 6) * 2);  // tick position (2025 skipped in the plates)
   const track = -((yr - 2018) * TICK) + (1 - slide) * 2700;
   const L = 9 * TICK + 1800, x0 = 900;
   const count = 24.1e6 * Math.pow(clamp((t - Y0) / (23.5 - Y0)), 2.1);
   const stripOp = ss(span(t, 20.0, 20.5));
-  return <AbsoluteFill style={{transformOrigin: `${CX}px ${CY}px`, transform: `rotate(${roll}deg) scale(${sc}) scaleY(${1 + taut * .07})`}}>
+  return <AbsoluteFill style={{transformOrigin: `${CX}px ${CY}px`, transform: `translateY(${shakeY(t)}px) rotate(${roll}deg) scale(${sc}) scaleY(${1 + taut * .07})`}}>
     {/* frosted pink body */}
     <div style={{position: 'absolute', left: CX - x0 + track, top: CY - RH / 2, width: L, height: RH, borderRadius: 8,
       background: 'linear-gradient(180deg, rgba(255,226,242,.78) 0%, rgba(246,176,214,.62) 50%, rgba(255,222,240,.78) 100%)',
-      boxShadow: '0 0 0 1.5px rgba(255,255,255,.85) inset, 0 0 30px rgba(255,255,255,.45), 0 0 130px rgba(255,110,195,.55)'}}/>
+      boxShadow: '0 0 0 1.5px rgba(255,255,255,.85) inset, 0 0 30px rgba(255,255,255,.45), 0 0 130px rgba(255,110,195,.55)', opacity: bodyA}}/>
     {/* hot specular core streak */}
-    <div style={{position: 'absolute', left: CX - x0 + track, top: CY - RH / 2 + RH * .14, width: L, height: RH * .16, mixBlendMode: 'screen',
+    <div style={{position: 'absolute', left: CX - x0 + track, top: CY - RH / 2 + RH * .14, width: L, height: RH * .16, mixBlendMode: 'screen', opacity: bodyA,
       background: 'linear-gradient(180deg, rgba(255,255,255,0), rgba(255,255,255,.85) 45%, rgba(255,255,255,0))'}}/>
     {/* the years, eye-locked, inside the ruler (window fixed under the cursor) */}
-    <div style={{position: 'absolute', left: CX - SW / 2, top: CY - SH / 2, width: SW, height: SH, opacity: stripOp * slide,
+    <div style={{position: 'absolute', left: CX - SW / 2, top: CY - SH / 2, width: SW, height: SH, opacity: stripOp * slide * (1 - slam),
       maskImage: 'linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent)', WebkitMaskImage: 'linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent)'}}>
       {YEARS.map((y, i) => {
         const d = Math.abs(yi - i), a = i === YEARS.length - 1 && yi >= i ? 1 : clamp(1.5 - d * 1.5);
@@ -238,7 +245,7 @@ const Ruler: React.FC<{t: number; yi: number}> = ({t, yi}) => {
       <div style={{position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(255,230,245,.35), rgba(255,230,245,0) 30%, rgba(255,230,245,0) 70%, rgba(255,230,245,.35))'}}/>
     </div>
     {/* ticks + micro-type, moving with the body */}
-    <div style={{position: 'absolute', left: CX - x0 + track, top: CY - RH / 2, width: L, height: RH}}>
+    <div style={{position: 'absolute', left: CX - x0 + track, top: CY - RH / 2, width: L, height: RH, opacity: 1 - slam}}>
       <div style={{position: 'absolute', left: 0, right: 0, top: 8, height: 14, background: 'linear-gradient(180deg, rgba(255,255,255,.8), rgba(255,255,255,0))'}}/>
       {Array.from({length: 9 * 10 + 1}, (_, k) => {
         const major = k % 10 === 0, x = x0 + (k / 10) * TICK;
@@ -252,10 +259,10 @@ const Ruler: React.FC<{t: number; yi: number}> = ({t, yi}) => {
     </div>
     {/* counter as micro-type on the lower edge */}
     <div style={{position: 'absolute', left: CX + 24, top: CY + RH / 2 - 34, fontFamily: 'Inter', fontWeight: 500, fontSize: 18, letterSpacing: 7,
-      fontVariantNumeric: 'tabular-nums', color: 'rgba(110,40,85,.75)', opacity: span(t, Y0, Y0 + .3) * (1 - grow)}}>{fmt(count)} SUBSCRIBERS</div>
+      fontVariantNumeric: 'tabular-nums', color: 'rgba(110,40,85,.75)', opacity: span(t, Y0, Y0 + .3) * (1 - slam)}}>{fmt(count)} SUBSCRIBERS</div>
     {/* cursor hairline */}
     <div style={{position: 'absolute', left: CX - 1, top: CY - RH / 2 - 26, width: 2, height: RH + 52, background: 'rgba(255,255,255,.95)',
-      boxShadow: '0 0 10px rgba(255,255,255,.9)', opacity: slide * (1 - grow)}}/>
+      boxShadow: '0 0 10px rgba(255,255,255,.9)', opacity: slide * (1 - slam)}}/>
   </AbsoluteFill>;
 };
 
@@ -325,7 +332,36 @@ const Intro: React.FC<{t: number}> = ({t}) => {
   </AbsoluteFill>;
 };
 
-const whiteD = (t: number) => 1 - eout(span(t, O.whip, O.whip + .12));
+const whiteD = (_t: number) => 0;
+const Door: React.FC<{t: number}> = ({t}) => {
+  const u = span(t, HT.rel, HT.land), e = 1 / 24;
+  const open = (t: number) => {const u = span(t, HT.rel, HT.land);
+    return {a: SH / 2 * RS * Math.exp(Math.log(7.5) * hEase(u / .8)), w: SW * RS * Math.exp(Math.log(3.2) * hEase(u / .5))};};
+  const {a, w} = open(t), n = open(t + e);
+  const fv = Math.max(1.5, Math.abs(n.a - a) * .5), fh = Math.max(w * .18, Math.abs(n.w - w) * .25);
+  const doorA = ss(span(t, HT.lo, HT.slam));
+  if (doorA <= 0 || u >= 1) return null;
+  const M = 700, cy = M + CY, cx = M + CX;                        // door is oversized by M on every side (it rotates with the ruler)
+  const mask = `linear-gradient(180deg, #000 ${cy - a - fv}px, transparent ${cy - a}px, transparent ${cy + a}px, #000 ${cy + a + fv}px), ` +
+    `linear-gradient(90deg, #000 ${cx - w / 2}px, transparent ${cx - w / 2 + fh}px, transparent ${cx + w / 2 - fh}px, #000 ${cx + w / 2}px)`;
+  const railA = 1 - span(u, .6, .8), cc = rgb([255, 200, 232], [150, 215, 225], span(t, HT.slam, 24.1));
+  const sweep = eout(span(t, HT.slam, HT.rel)), sweepA = pulse(t, HT.slam + .12, .04, .2);
+  const rail = (y: number) => <div style={{position: 'absolute', left: cx - w / 2 * 1.05, width: w * 1.05, top: y - .75, height: 1.5, opacity: railA * (t < HT.slam ? doorA : 1),
+    background: `linear-gradient(90deg, transparent, ${cc} 15%, #fff 50%, ${cc} 85%, transparent)`, boxShadow: `0 0 14px ${cc}, 0 0 40px ${cc}`}}/>;
+  return <AbsoluteFill style={{transformOrigin: `${CX}px ${CY}px`, transform: `translateY(${shakeY(t)}px) rotate(${rollAt(t)}deg) scale(${RS})`}}>
+    <div style={{position: 'absolute', left: -M, top: -M, width: W + 2 * M, height: H + 2 * M, opacity: doorA, maskImage: mask, WebkitMaskImage: mask,
+      maskComposite: 'add', WebkitMaskComposite: 'source-over'} as React.CSSProperties}>
+      <div style={{position: 'absolute', inset: 0, background: 'linear-gradient(180deg, #0c1f29, #05080b)'}}/>
+      <div style={{position: 'absolute', inset: 0, background: `linear-gradient(180deg, transparent ${cy - 260}px, rgba(160,205,220,.07) ${cy - 140}px, transparent ${cy - 40}px)`}}/>
+      <div style={{position: 'absolute', left: 0, right: 0, top: cy - a - 3, height: 3, background: 'rgba(0,0,0,.6)'}}/>
+    </div>
+    <div style={{position: 'absolute', left: -M, top: -M, width: W + 2 * M, height: H + 2 * M}}>
+      {rail(cy - a)}{rail(cy + a)}
+      {sweepA > 0 && <div style={{position: 'absolute', left: cx - w / 2 + (sweep * 1.4 - .2) * w - 90, width: 180, top: cy - a - 2, height: 4, mixBlendMode: 'screen', opacity: sweepA,
+        background: 'radial-gradient(ellipse, #fff 0%, rgba(255,220,240,.6) 40%, transparent 70%)', boxShadow: '0 0 30px rgba(255,230,245,.8)'}}/>}
+    </div>
+  </AbsoluteFill>;
+};
 const Outro: React.FC<{t: number}> = ({t}) => {
   if (t >= O.card) {
     const a = span(t, O.card, O.card + .12);
@@ -339,21 +375,28 @@ const Outro: React.FC<{t: number}> = ({t}) => {
     </AbsoluteFill>;
   }
   const pr = (t: number) => {
-    // whip down into the studio, then low-key push; darkens out before the dusk
-    const u = span(t, O.whip, O.whip + .42), pos = 1 - Math.pow(1 - u, 3), y0 = -1.6 * H * (1 - pos);
-    const v = u < 1 ? 3 * Math.pow(1 - u, 2) * 1.6 * H / (.42 * 24) : 0;   // px per frame
-    const blur = v > 6 ? [0, 1, 2, 3, 4, 5, 6].map(j => -v * .9 * j / 6) : [0];
-    const src = 1.0 + (t - O.whip);
-    const z = 1 + .07 * span(t, O.dark, O.dusk) + .1 * ein(span(t, O.dusk - .3, O.dusk + .08));
+    // eye-locked hatch pull-back: from the slot's eyes (s0) out to the wide studio, landing on 24.688; then a slow creep
+    const at = (t: number) => {
+      const src = .25 + (t - HT.slam), ey = PR_EYES[clamp(Math.round(src * 24), 0, PR_EYES.length - 1)];
+      const Ex = ey[0], Ey = ey[1], s0 = SLOT.ioc / ey[2];
+      const g = 1 - hEase(span(t, HT.rel, HT.land));
+      const s = Math.exp(Math.log(1.05) + (Math.log(s0) - Math.log(1.05)) * g) * mix(1, 1 / 1.05, span(t, HT.land, 26.0))
+        * (1 + .1 * ein(span(t, O.dusk - .3, O.dusk + .08)));
+      const rho = -ey[3] * g, Px = mix(Ex, SLOT.x, g), Py = mix(Ey, SLOT.y, g) + shakeY(t) * g;
+      return {src, tr: `translate(${Px}px, ${Py}px) rotate(${rho}rad) scale(${s}) translate(${-Ex}px, ${-Ey}px)`, ls: Math.log(s)};
+    };
+    const c0 = at(t), dl = Math.abs(at(t + 1 / 48).ls - at(t - 1 / 48).ls);
+    const N = clamp(Math.ceil(dl * 120), 1, 12);
+    const smp = N === 1 ? [c0] : Array.from({length: N}, (_, j) => at(t + (j / (N - 1) - .5) * .5 / 24));
+    const gr = ss(span(t, HT.rel, 24.45));
     const dim = 1 - ein(span(t, O.dusk - .3, O.dusk + .08));
     return <AbsoluteFill style={{background: '#000'}}>
-      <AbsoluteFill style={{transformOrigin: `${.55 * W}px ${.33 * H}px`, transform: `scale(${z})`, filter: `brightness(${.62 * dim + .38 * whiteD(t) * 0}) saturate(.78) contrast(1.08)`}}>
-        {blur.map((d, j) => <AbsoluteFill key={j} style={{opacity: 1 / (j + 1)}}>
-          {[0, 1, 2].map(r => <Img key={r} src={seq('p_reveal', src)} style={{position: 'absolute', left: 0, top: y0 + d + r * H, width: W, height: H}}/>)}
-        </AbsoluteFill>)}
-        <AbsoluteFill style={{background: '#0b1630', mixBlendMode: 'multiply', opacity: .35}}/>
+      <AbsoluteFill style={{filter: `brightness(${mix(.9, .62, gr) * dim}) saturate(${mix(.5, .78, gr)}) contrast(1.08)`}}>
+        {smp.map((c, j) => <Img key={j} src={seq('p_reveal', c.src)} style={{position: 'absolute', left: 0, top: 0, width: W, height: H, transformOrigin: '0 0',
+          transform: c.tr, opacity: 1 / (j + 1)}}/>)}
+        <AbsoluteFill style={{background: '#ff4a78', mixBlendMode: 'color', opacity: .5 * (1 - gr)}}/>
+        <AbsoluteFill style={{background: '#0b1630', mixBlendMode: 'multiply', opacity: .35 * gr}}/>
       </AbsoluteFill>
-      <AbsoluteFill style={{background: '#fff', opacity: whiteD(t)}}/>
     </AbsoluteFill>;
   };
   if (t < O.dusk - .3) return pr(t);
@@ -447,7 +490,8 @@ export const Shong07: React.FC = () => {
   // ===== C: ruler =====
   const yi = clamp((t - Y0) / (Y1 - Y0)) * (YEARS.length - 1);
   const showR = t > T.ruler && t < T.white + .5;
-  const whiteOut = ss(span(t, 23.9, T.white));
+  const whiteOut = 0;
+  const lights = ein(span(t, HT.lo, HT.slam));
 
   return <AbsoluteFill style={{background: '#000', overflow: 'hidden'}}>
     {/* ===== 0: intro ===== */}
@@ -530,7 +574,7 @@ export const Shong07: React.FC = () => {
     {/* ===== B4: 2018 face, eyes locked at frame centre ===== */}
     {showCam && <AbsoluteFill>
       <Img src={seq('y18/fc', t - T.motes)} style={{position: 'absolute', width: W, height: H, transformOrigin: '0 0',
-        transform: `translate(${CX - camS * ey[0] * W}px, ${CY - camS * ey[1] * H}px) scale(${camS})`, filter: 'contrast(1.06)'}}/>
+        transform: `translate(${CX - camS * ey[0] * W}px, ${CY - camS * ey[1] * H}px) scale(${camS})`, filter: `contrast(1.06) brightness(${mix(1, .06, lights)}) saturate(${mix(1, .4, lights)})`}}/>
       <div style={{position: 'absolute', left: 0, right: 0, top: CY + 190, textAlign: 'center', fontFamily: 'Inter', fontWeight: 500, fontSize: 18,
         letterSpacing: 12, color: 'rgba(255,255,255,.85)', opacity: span(t, T.orange, T.orange + .15) * (1 - span(t, T.ruler - .05, T.ruler + .25))}}>2018</div>
     </AbsoluteFill>}
@@ -538,7 +582,8 @@ export const Shong07: React.FC = () => {
     {/* ===== D: outro ===== */}
     {t >= O.whip && <Outro t={t}/>}
     {/* ===== C: ruler ===== */}
-    {showR && t < O.whip + .02 && <Ruler t={t} yi={yi}/>}
+    <Door t={t}/>
+    {showR && t < HT.rel + .02 && <Ruler t={t} yi={yi}/>}
     {showR && t < O.whip && <AbsoluteFill style={{background: 'radial-gradient(circle at 50% 50%, #fff 0%, rgba(255,240,248,.9) 40%, rgba(255,220,240,.6) 100%)', opacity: whiteOut}}/>}
 
     {/* lifted blacks (~3%) */}
