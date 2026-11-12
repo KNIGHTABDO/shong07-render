@@ -320,7 +320,7 @@ const whipD = (t: number) => {
   const [x0, y0] = WT[i], [x1, y1] = WT[i + 1], h = x1 - x0, u = (t - x0) / h, u2 = u * u, u3 = u2 * u;
   return H * ((2 * u3 - 3 * u2 + 1) * y0 + (u3 - 2 * u2 + u) * h * WTAN[i] + (-2 * u3 + 3 * u2) * y1 + (u3 - u2) * h * WTAN[i + 1]);
 };
-const hSrc = (t: number) => t < 4.125 ? mix(1.9, 3.96, eout(span(t, I.open, 4.04))) : mix(3.96, 2.9, span(t, 4.125, I.click));
+const hSrc = (t: number) => t < 4.125 ? mix(0, 3.96, span(t, I.open, 4.125)) : mix(3.96, 2.9, span(t, 4.125, I.click));
 const montZ = (t: number) => {
   let z = 1 + .2 * ein(span(t, I.click, 7.84)) + 1.6 * ein(span(t, 7.86, T.a0));
   for (const [c] of MONT) if (t >= c && c !== I.click) z *= 1 + .06 * Math.exp(-(t - c) / .16);
