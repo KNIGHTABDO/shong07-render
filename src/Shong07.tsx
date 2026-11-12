@@ -183,8 +183,8 @@ const DROPS = Array.from({length: 24}, (_, i) => {
   return {k: 1 + (i * 5) % 8, layer, ring, x: .04 + .92 * rnd(i), ym: ring >= 0 ? .15 + .7 * rnd(i + 50) : -.15 + 1.3 * rnd(i + 50),
     rot: rnd(i + 90) * 360, spin: (rnd(i + 130) - .5) * 200, s: [70, 150, 280][layer] * (.8 + .4 * rnd(i + 170)), v: [360, 780, 1450][layer] * (.85 + .3 * rnd(i + 210))};
 });
-const sInt = (t: number) => t < 9.9 ? 2.2 * Math.pow(2.65 / 2.2, span(t, 9.22, 9.9)) : 2.65 * Math.pow(.39 / 2.65, io(span(t, 9.9, 10.75)));
-const rotInt = (t: number) => -9 * (t - 9.22) - 55 * io(span(t, 9.9, 10.75));
+const sInt = (t: number) => 2.2 * Math.pow(9 / 2.2, Math.pow(span(t, 9.22, 12.1), 1.6));      // one push through the stone, never reverses
+const rotInt = (t: number) => -9 * (t - 9.22) - 30 * io(span(t, 10.0, 12.1));
 const Stone: React.FC<{k: number; x: number; y: number; s: number; r: number; a: number; blur?: number; trail?: number}> = ({k, x, y, s, r, a, blur = 0, trail = 0}) => a <= .01 ? null :
   <>{Array.from({length: trail > 6 ? 7 : 1}, (_, j) => <Img key={j} src={C(`dia/d${k}.png`)} style={{position: 'absolute', left: x - s / 2, top: y - s / 2 - trail * .5 * j / 6, width: s, height: s,
     transform: `rotate(${r}deg)`, mixBlendMode: 'screen', opacity: trail > 6 ? a * (j ? .32 : .75) : a, filter: blur > .2 ? `blur(${blur}px)` : undefined}}/>)}</>;
@@ -549,29 +549,23 @@ export const Shong07: React.FC = () => {
 
   // ===== B: eye =====
   // ===== A→B: inside the diamond =====
-  const showD = t >= 9.22 && t < 12.2;
-  const intA = ss(span(t, 9.22, 9.42)), showInt = t < 10.8, si = sInt(t), ri = rotInt(t);
-  const intDl = Math.log(sInt(t - 1 / 48) / sInt(t + 1 / 48)), intN = intDl > .04 ? 4 : 1;      // pull-back streak
-  const tealX = ss(span(t, 9.95, 10.6)), kalA = .24 * (1 - span(t, 9.85, 10.3));
-  const bigA = ss(span(t, 10.5, 10.72));                                // circle of the interior becomes the round stone
-  const bk = io(span(t, 10.75, 11.75));
-  const bigD = t < 10.75 ? 1080 * si : 421 * Math.pow(80 / 421, io(span(t, 10.75, 11.8)));
-  const bigX = mix(CX, DI[0], bk), bigY = mix(CY, DI[1], bk), bigR = t < 10.75 ? ri : rotInt(10.75) - 60 * (t - 10.75);
-  const bigDark = ss(span(t, 11.1, 11.8)), faceA = .55 * span(t, 10.55, 10.8) * (1 - span(t, 10.9, 11.3));
-  const gk = io(span(t, T_RING, 11.7)), ringR = mix(430, 122, io(span(t, T_RING, 11.95))), ringRot = -1.1 * Math.max(0, t - T_RING) - .9 * gk;
-  const dropIn = ss(span(t, 9.85, 10.2)), dropOut = 1 - span(t, T_RING, 11.3), ringOut = 1 - ss(span(t, 11.8, 12.15));
-  const roll = -28 * io(span(t, 9.85, 10.9));
-  const tealK = ss(span(t, 10.3, 11.3));
-  const dBg = rgb([12, 26, 62], [3, 12, 18], ss(span(t, 10.6, 11.8)));
+  const showD = t >= 9.22 && t < 12.15;
+  const intA = ss(span(t, 9.22, 9.42)), si = sInt(t), ri = rotInt(t);
+  const intDl = Math.log(sInt(t + 1 / 48) / sInt(t - 1 / 48)), intN = intDl > .035 ? 4 : 1;      // push streak
+  const tealX = ss(span(t, 9.8, 11.0)), kalA = .24 * (1 - span(t, 9.85, 10.4));
+  const intB = mix(1, .5, ss(span(t, 10.6, 11.8)));
+  const revR = 60 * Math.pow(1500 / 60, io(span(t, 11.0, 12.05)));      // the centre facet opens into his eye
+  const revA = ss(span(t, 10.95, 11.25)), rimA = .75 * revA * (1 - span(t, 11.75, 12.05));
+  const preZ = t < T.iris ? mix(.7, 1, eout(span(t, 11.0, T.iris))) : 1;
   const eyeSrc = clamp(EYE_S0 + (t - T.iris) * EYE_V, 0, 3.95);
-  const eIn = ss(span(t, 11.72, 12.12)), eG = 1;                       // the ring of stones dissolves into the iris
+  const eIn = 1, eG = 1;                       // the ring of stones dissolves into the iris
   const eSpread = 0, eN = 1;
   const ghostA = 0;
   const pcx = lerpTab(PUP, eyeSrc, 1), pcy = lerpTab(PUP, eyeSrc, 2), pr = lerpTab(PUP, eyeSrc, 3);
   // hard zoom punches on the three onsets, then an accelerating push until the pupil edge leaves the frame at 15.65
   const zStep = t < 14.85 ? 1 : t < 15.1 ? 1.5 : t < 15.5 ? 2.25 : 3.4;
-  const eyeZ = mix(1.0, 1.06, span(t, T.iris, 14.85)) * zStep * (1 + .05 * span(t, 14.85, 15.5)) * mix(1, 1.42, (u => .85 * (2 * u - u * u) + .15 * u)(span(t, 15.5, T.pupil)));
-  const showEye = t > 11.7 && t < T.pupil;
+  const eyeZ = preZ * mix(1.0, 1.06, span(t, T.iris, 14.85)) * zStep * (1 + .05 * span(t, 14.85, 15.5)) * mix(1, 1.42, (u => .85 * (2 * u - u * u) + .15 * u)(span(t, 15.5, T.pupil)));
+  const showEye = t > 10.95 && t < T.pupil;
   const PX = pcx * W, PY = pcy * H, PR = pr * eyeZ;
   const hit = BEATS.reduce((a, h) => a + pulse(t, h, .03, .18), 0);
   const gaSrc = clamp(t - 14.95, 0, .99);
@@ -643,46 +637,23 @@ export const Shong07: React.FC = () => {
     </AbsoluteFill>}
 
     {/* ===== A→B: inside the diamond ===== */}
-    {showD && <AbsoluteFill style={{background: dBg, opacity: intA}}>
-      <AbsoluteFill style={{background: `radial-gradient(circle at ${DI[0]}px ${DI[1]}px, rgba(26,166,180,${.3 * gk}) 0%, transparent 45%)`}}/>
-      {/* far stones behind the interior */}
-      {DROPS.filter(d => d.layer === 0).map((d, i) => {const tf = t - T_RING;
-        return <Stone key={`f${i}`} k={d.k} x={CX + (d.x * W - CX)} y={d.ym * H + d.v * tf} s={d.s} r={d.rot + d.spin * tf} a={.7 * dropIn * dropOut} blur={2.5}/>;})}
-      {showInt && Array.from({length: intN}, (_, j) => <AbsoluteFill key={`i${j}`} style={{transform: `rotate(${ri}deg) scale(${si * Math.exp(intDl * j / 3)})`, opacity: (1 - bigA) / (j + 1)}}>
-        <AbsoluteFill style={{WebkitMaskImage: 'radial-gradient(circle 540px at 50% 50%, #000 96%, transparent 100%)', maskImage: 'radial-gradient(circle 540px at 50% 50%, #000 96%, transparent 100%)'}}>
-          <Img src={C('dia/interior.jpg')} style={{position: 'absolute', width: W, height: H, objectFit: 'cover'}}/>
-          <Img src={C('dia/interior_teal.jpg')} style={{position: 'absolute', width: W, height: H, objectFit: 'cover', opacity: tealX}}/>
-          {j === 0 && kalA > .01 && [0, 120, 240].map(a => <AbsoluteFill key={a} style={{transform: `rotate(${a}deg) scale(.62)`, mixBlendMode: 'screen', opacity: kalA}}>
-            <Seq name="plqB" src={aSrcB} filter="saturate(.7) contrast(1.1) blur(2px)"/>
-          </AbsoluteFill>)}
-        </AbsoluteFill>
+    {showD && <AbsoluteFill style={{background: '#02080c', opacity: intA}}>
+      {Array.from({length: intN}, (_, j) => <AbsoluteFill key={`i${j}`} style={{transform: `translate(${DI[0] - CX}px, ${DI[1] - CY}px) rotate(${ri}deg) scale(${si * Math.exp(-intDl * j / 3)})`,
+        opacity: 1 / (j + 1), filter: `brightness(${intB})`}}>
+        <Img src={C('dia/interior.jpg')} style={{position: 'absolute', width: W, height: H, objectFit: 'cover'}}/>
+        <Img src={C('dia/interior_teal.jpg')} style={{position: 'absolute', width: W, height: H, objectFit: 'cover', opacity: tealX}}/>
+        {j === 0 && kalA > .01 && [0, 120, 240].map(a => <AbsoluteFill key={a} style={{transform: `rotate(${a}deg) scale(.62)`, mixBlendMode: 'screen', opacity: kalA}}>
+          <Seq name="plqB" src={aSrcB} filter="saturate(.7) contrast(1.1) blur(2px)"/>
+        </AbsoluteFill>)}
       </AbsoluteFill>)}
-      {/* mid + near stones, the field rolls CCW while they fall; ring members gather around the iris */}
-      {DROPS.filter(d => d.layer > 0).map((d, i) => {
-        const tf = t - T_RING, fx0 = d.x * W, fy0 = d.ym * H + d.v * (t < T_RING ? tf : tf * (1 - .7 * gk));
-        const rr = roll * Math.PI / 180, fx = CX + (fx0 - CX) * Math.cos(rr) - (fy0 - CY) * Math.sin(rr), fy = CY + (fx0 - CX) * Math.sin(rr) + (fy0 - CY) * Math.cos(rr);
-        if (d.ring < 0) return <Stone key={`d${i}`} k={d.k} x={fx} y={fy} s={d.s} r={d.rot + d.spin * tf + roll} a={dropIn * dropOut} trail={d.layer === 2 ? d.v / 24 : 0}/>;
-        const th = 2 * Math.PI * d.ring / RING_N + ringRot, tx = DI[0] + ringR * Math.cos(th), ty = DI[1] + ringR * Math.sin(th);
-        return <Stone key={`d${i}`} k={d.k} x={mix(fx, tx, gk)} y={mix(fy, ty, gk)} s={mix(d.s, 46, gk)} r={mix(d.rot + d.spin * tf + roll, th * 180 / Math.PI + 90, gk)}
-          a={dropIn * ringOut} trail={d.layer === 2 ? d.v / 24 * (1 - gk) : 0}/>;})}
-      {/* the round stone: the interior's circle, his face inside, darkens into the pupil */}
-      {bigA > .01 && <div style={{position: 'absolute', left: bigX - bigD / 2 / .83, top: bigY - bigD / 2 / .83, width: bigD / .83, height: bigD / .83, transform: `rotate(${bigR}deg)`, opacity: bigA, mixBlendMode: 'screen', filter: `brightness(${mix(1.05, .08, bigDark)})`}}>
-        <Img src={C('dia/d1.png')} style={{position: 'absolute', width: '100%', height: '100%'}}/>
-        {faceA > .01 && <Img src={C('faces/f2026.jpg')} style={{position: 'absolute', left: '22%', top: '22%', width: '56%', height: '56%', borderRadius: '50%', objectFit: 'cover',
-          mixBlendMode: 'screen', opacity: faceA, transform: `rotate(${-bigR}deg)`, filter: 'saturate(.4) contrast(1.15)'}}/>}
-      </div>}
-      {bigDark > .01 && <div style={{position: 'absolute', left: bigX - bigD * .55, top: bigY - bigD * .55, width: bigD * 1.1, height: bigD * 1.1, borderRadius: '50%',
-        background: 'radial-gradient(circle, #000 0%, #000 70%, transparent 92%)', opacity: bigDark}}/>}
-      <Glint x={CX} y={CY - 120} a={pulse(t, 10.72, .03, .25)} s={300}/>
-      <Glint x={DI[0] + 122 * Math.cos(ringRot - 1)} y={DI[1] + 122 * Math.sin(ringRot - 1)} a={pulse(t, 11.62, .03, .25) * .9} s={180}/>
-      <AbsoluteFill style={{background: '#1aa6b4', mixBlendMode: 'color', opacity: .5 * tealK}}/>
-      <AbsoluteFill style={{background: `radial-gradient(circle at ${DI[0]}px ${DI[1]}px, transparent 30%, rgba(0,0,0,${.55 * tealK}) 100%)`}}/>
+      <AbsoluteFill style={{background: `radial-gradient(circle at ${DI[0]}px ${DI[1]}px, transparent 35%, rgba(0,0,0,${.5 * tealX}) 100%)`}}/>
     </AbsoluteFill>}
 
     {/* ===== B: eye, cyan-teal; the 2018 screen reflected in the pupil ===== */}
-    {showEye && <AbsoluteFill style={{opacity: eIn}}>
+    {showEye && <AbsoluteFill style={t < 12.05 ? {opacity: revA, WebkitMaskImage: `radial-gradient(circle ${revR}px at ${DI[0]}px ${DI[1]}px, #000 78%, transparent 100%)`,
+      maskImage: `radial-gradient(circle ${revR}px at ${DI[0]}px ${DI[1]}px, #000 78%, transparent 100%)`} : {}}>
       {Array.from({length: eN}, (_, j) => <Seq key={j} name="eyeP" src={eyeSrc} z={eyeZ * (1 + eSpread * j / Math.max(1, eN - 1))} ox={pcx} oy={pcy} style={{opacity: 1 / (j + 1)}}
-        filter={t < T.iris ? `saturate(${mix(1, .3, eG)}) contrast(${mix(1, 1.12, eG)}) brightness(${mix(1.4, .82, eIn)}) blur(${10 * (1 - eIn)}px)`
+        filter={t < T.iris ? `saturate(${mix(1, .3, eG)}) contrast(${mix(1, 1.12, eG)}) brightness(.82) blur(${4 * (1 - span(t, 11.3, 11.9))}px)`
           : `saturate(.3) contrast(1.12) brightness(${.82 + .18 * hit})`}/>)}
       {/* the only diamond left: a refraction of his own face */}
       {ghostA > 0 && [[1.03, 1.5], [.975, -1.5]].map(([gs, gr], k) => <AbsoluteFill key={`g${k}`} style={{mixBlendMode: 'screen', opacity: ghostA,
@@ -693,13 +664,15 @@ export const Shong07: React.FC = () => {
       <AbsoluteFill style={{background: '#0d5e6e', mixBlendMode: 'soft-light', opacity: .5 * eG}}/>
       {/* pupil pure black */}
       <div style={{position: 'absolute', left: PX - PR * 1.1, top: PY - PR * 1.1, width: PR * 2.2, height: PR * 2.2, borderRadius: '50%',
-        background: 'radial-gradient(circle, #000 0%, #000 72%, transparent 92%)', opacity: eG}}/>
+        background: 'radial-gradient(circle, #000 0%, #000 72%, transparent 92%)', opacity: ss(span(t, T.iris, 12.4))}}/>
       {t >= 14.85 && <div style={{position: 'absolute', left: PX - reflW / 2, top: PY - reflW * 9 / 32, width: reflW, height: reflW * 9 / 16, borderRadius: reflW * .02,
         overflow: 'hidden', opacity: reflA, boxShadow: `0 0 ${reflW * .35}px rgba(150,200,255,${.35 * reflA})`}}>
         <Img src={seq('y18/ga', gaSrc)} style={{width: '100%', height: '100%', filter: 'saturate(.6) brightness(1.05)'}}/>
       </div>}
     </AbsoluteFill>}
 
+    {rimA > .01 && <div style={{position: 'absolute', left: DI[0] - revR * .9, top: DI[1] - revR * .9, width: revR * 1.8, height: revR * 1.8, borderRadius: '50%',
+      boxShadow: `0 0 ${12 + revR * .08}px ${2 + revR * .02}px rgba(190,250,255,.8), inset 0 0 ${10 + revR * .1}px rgba(150,240,255,.6)`, mixBlendMode: 'screen', opacity: rimA}}/>}
     {flash > .005 && <AbsoluteFill style={{background: 'radial-gradient(circle at 47% 30%, #fff 0%, #fff 45%, #eef4ff 100%)', opacity: flash}}/>}
     {/* ===== B2: the 2018 bedroom; the reflection is now the monitor ===== */}
     {showRoom && <AbsoluteFill>
