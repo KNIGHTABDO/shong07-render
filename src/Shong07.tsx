@@ -498,7 +498,7 @@ export const Shong07: React.FC = () => {
 
   // ===== B: eye =====
   const eu = span(t, 10.05, T.iris);                                   // eyeP retimed so it reaches src 1.6 at 12.15 with slope EYE_V
-  const eyeSrc = t < T.iris ? 1.6 * (.862 * eu + .138 * (1 - Math.pow(1 - eu, 3))) : clamp(EYE_S0 + (t - T.iris) * EYE_V, 0, 3.95);
+  const eyeSrc = t < T.iris ? .75 + .85 * (.38 * eu + .62 * eu * eu) : clamp(EYE_S0 + (t - T.iris) * EYE_V, 0, 3.95);
   const eIn = ss(span(t, 10.0, 10.4)), eG = t < T.iris ? io(span(t, 11.3, T.iris)) : 1;     // hand-off inside the cream; lights down into the iris grade
   const eSpread = .07 * (1 - eIn), eN = t < 10.4 && eSpread > .004 ? 8 : 1;
   const ghostA = t > 10.1 ? .22 * (1 - span(t, 10.1, 10.9)) : 0;
