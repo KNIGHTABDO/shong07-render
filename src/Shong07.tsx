@@ -97,6 +97,63 @@ const Glint: React.FC<{x: number; y: number; a: number; s: number; warm?: boolea
       background: `radial-gradient(ellipse, rgba(255,255,255,.9), ${warm ? 'rgba(255,150,70,.35)' : 'rgba(150,190,255,.35)'} 40%, transparent 70%)`}}/>
   </div>;
 
+// ---------- A2: the diamond — its facets refract the plaque, then his eye; it shrinks into the iris ----------
+const GEM0 = 9.35, SPARK = [10.05, 10.65, 10.98, 11.57];
+type Pt = [number, number];
+const Gem: React.FC<{t: number; aSrcB: number; plqZ: number; p0: Pt}> = ({t, aSrcB, plqZ, p0}) => {
+  const shrink = io(span(t, GEM0, 10.45)), dive = io(span(t, 11.45, 12.1));
+  const R = (t < 11.45 ? mix(1400, 340, shrink) : mix(340, 112, dive)) * (1 + .025 * Math.sin((t - GEM0) * 5.2) * (1 - dive));
+  const gx = mix(CX, p0[0], dive), gy = mix(CY * .96, p0[1], dive);
+  const rot = (18 * (t - GEM0) + 40 * dive) * Math.PI / 180;
+  const k = ss(span(t, GEM0, 9.8)) * (1 - io(span(t, 11.7, 12.1)));          // refraction strength: 0 at both ends (seamless)
+  const em = ss(span(t, 11.55, 11.98));                                         // plaque → eye inside the facets
+  const eSrc = Math.max(0, EYE_S0 + (t - T.iris) * EYE_V);
+  const P = (a: number, r: number): Pt => [gx + Math.cos(a) * r, gy + Math.sin(a) * r];
+  const Tv = (i: number) => P(rot + i * Math.PI / 4, R * .52), Ov = (i: number) => P(rot + (i + .5) * Math.PI / 4, R);
+  const fac: {pts: Pt[]; kind: number; a: number}[] = [{pts: [0, 1, 2, 3, 4, 5, 6, 7].map(Tv), kind: 0, a: 0}];
+  for (let i = 0; i < 8; i++) {
+    fac.push({pts: [Tv(i), Tv(i + 1), Ov(i)], kind: 1, a: rot + (i + .5) * Math.PI / 4});
+    fac.push({pts: [Ov(i - 1), Tv(i), Ov(i)], kind: 2, a: rot + i * Math.PI / 4});
+  }
+  const content = <>
+    {em < 1 && <AbsoluteFill style={{transform: `translate(${(gx - PLQ[0]) * shrink}px, ${(gy - PLQ[1]) * shrink}px)`, opacity: 1 - em}}>
+      <Seq name="plqB" src={aSrcB} z={plqZ} ox={.47} oy={.3} filter={`saturate(.3) contrast(1.05) brightness(${mix(1.3, .95, shrink)})`}/>
+      <AbsoluteFill style={{background: '#d6e4ff', mixBlendMode: 'soft-light', opacity: .55}}/>
+    </AbsoluteFill>}
+    {em > 0 && <AbsoluteFill style={{transform: `translate(${gx - p0[0]}px, ${gy - p0[1]}px)`, opacity: em}}>
+      <Seq name="eyeP" src={eSrc} z={1} ox={lerpTab(PUP, EYE_S0, 1)} oy={lerpTab(PUP, EYE_S0, 2)} filter={`saturate(.3) contrast(1.12) brightness(${mix(1.25, .82, dive)})`}/>
+      <AbsoluteFill style={{background: '#1aa6b4', mixBlendMode: 'color', opacity: .55}}/>
+      <AbsoluteFill style={{background: '#0d5e6e', mixBlendMode: 'soft-light', opacity: .5}}/>
+    </AbsoluteFill>}
+  </>;
+  const poly = (pts: Pt[]) => `polygon(${pts.map(p => `${p[0].toFixed(1)}px ${p[1].toFixed(1)}px`).join(',')})`;
+  const op = ss(span(t, GEM0 - .02, GEM0 + .06)) * (1 - ss(span(t, T.iris + .02, T.iris + .22)));
+  const edgeA = ss(span(t, GEM0, GEM0 + .3)) * (1 - io(span(t, 11.85, 12.15)));
+  return <AbsoluteFill style={{opacity: op}}>
+    {/* caustic glow around the stone once it sits on the dark */}
+    <div style={{position: 'absolute', left: gx - R * 1.9, top: gy - R * 1.9, width: R * 3.8, height: R * 3.8, borderRadius: '50%', mixBlendMode: 'screen',
+      background: 'radial-gradient(circle, rgba(140,200,255,.32) 0%, rgba(60,110,200,.12) 35%, transparent 62%)', opacity: ss(span(t, 9.9, 10.5))}}/>
+    {fac.map((fc, i) => {
+      const light = Math.pow(Math.max(0, Math.cos(fc.a * 1 - rot * 3.5 - 1.1)), 3);       // light rolls across the crown as it turns
+      const bright = fc.kind === 0 ? 1 : mix(1, .62 + .75 * light, k);
+      const tr = fc.kind === 0 ? `scale(${1 + .04 * k})`
+        : fc.kind === 1 ? `translate(${Math.cos(fc.a) * 46 * k}px, ${Math.sin(fc.a) * 46 * k}px) scale(${1 + .12 * k})`
+        : `rotate(${(hash(i * 2.3) - .5) * 50 * k}deg) scale(${1 + .24 * k})`;
+      return <AbsoluteFill key={i} style={{clipPath: poly(fc.pts)}}>
+        <AbsoluteFill style={{transformOrigin: `${gx}px ${gy}px`, transform: tr, filter: bright === 1 ? undefined : `brightness(${bright.toFixed(3)})`}}>{content}</AbsoluteFill>
+        {fc.kind > 0 && <AbsoluteFill style={{mixBlendMode: 'screen', opacity: k * (.12 + .4 * light),
+          background: `linear-gradient(${(fc.a * 180 / Math.PI + 90).toFixed(1)}deg, rgba(255,255,255,0) 20%, rgba(215,238,255,.9) 52%, rgba(255,255,255,0) 80%)`}}/>}
+      </AbsoluteFill>;
+    })}
+    <svg width={W} height={H} style={{position: 'absolute', inset: 0, opacity: edgeA}}>
+      {fac.map((fc, i) => <polygon key={i} points={fc.pts.map(p => p.join(',')).join(' ')} fill="none" stroke="rgba(210,235,255,.18)" strokeWidth={5} strokeLinejoin="round"/>)}
+      {fac.map((fc, i) => <polygon key={`b${i}`} points={fc.pts.map(p => p.join(',')).join(' ')} fill="none" stroke="rgba(245,250,255,.8)" strokeWidth={1.3} strokeLinejoin="round"/>)}
+    </svg>
+    {SPARK.map((s, j) => {const v = Ov(j * 3 + 1); return <Glint key={j} x={v[0]} y={v[1]} a={pulse(t, s, .03, .28)} s={mix(160, 90, shrink)}/>;})}
+    <Glint x={gx} y={gy} a={pulse(t, 11.91, .03, .22) * 1.2} s={260}/>
+  </AbsoluteFill>;
+};
+
 // ---------- B: eye ----------
 // pupil centre (frac) + pupil radius (px) in eyeP by src second (measured on frames)
 const PUP = [[0, .563, .488, 6], [.5, .569, .483, 9], [1.0, .573, .5, 14], [1.25, .6, .505, 20], [1.6, .55, .48, 35], [2.0, .497, .465, 60],
@@ -130,8 +187,6 @@ const DUST = Array.from({length: 16}, (_, i) => ({x: hash(i * 4.1), y: hash(i * 
 
 // ---------- 0: intro — 2018 webcam → floor of his faces, one row per year, flown over → white ----------
 const I = {glow: .25, open: 1.05, tag: 1.6, click: 4.25, up: 7.3};
-const TGAP = 70, TROW = H + TGAP, TCOL = W + TGAP, ROWS = 15, FLY = 9 * TROW, PERS = 1600;
-const yrRow = (k: number) => YEARS[Math.min(YEARS.length - 1, Math.floor(k * 7 / 9))];
 // ---------- D: outro — whip into the prison-series studio (now), dusk cowboy emerges from the dark, card ----------
 const O = {whip: 24.5, dark: 25.0, dusk: 26.25, card: 29.7, end: 31.875};
 
@@ -194,53 +249,59 @@ const Ruler: React.FC<{t: number; yi: number}> = ({t, yi}) => {
 };
 
 
+// eye-locked years montage: cuts on the vocal hits, one accelerating push, punch on every cut
+const MONT: [number, number][] = [[4.25, 2018], [5.61, 2019], [5.96, 2020], [6.49, 2021], [6.67, 2022], [7.13, 2023], [7.67, 2024], [7.84, 2026]];
+const EYE_Y = .40 * H;
+const montZ = (t: number) => {
+  let z = 1 + .2 * ein(span(t, I.click, 7.84)) + 1.6 * ein(span(t, 7.86, T.a0));
+  for (const [c] of MONT) if (t >= c) z *= 1 + .06 * Math.exp(-(t - c) / .16);
+  return z;
+};
 const Intro: React.FC<{t: number}> = ({t}) => {
-  const glow = eout(span(t, I.glow, I.open)) * (1 - span(t, I.open, I.open + .5));
-  const reveal = eout(span(t, I.open, I.open + .55));
-  const hs = mix(1.12, 1, span(t, I.open, I.click));
-  const hsrc = Math.min(3.96, Math.max(0, t - I.open) * 1.25);
-  const tag = span(t, I.tag, I.tag + .2) * (1 - span(t, I.click - .2, I.click));
-  if (t < I.click) return <AbsoluteFill>
-    <AbsoluteFill style={{background: `radial-gradient(circle at 50% 50%, rgba(170,225,255,${.9 * glow}) 0%, rgba(60,140,200,${.35 * glow}) ${6 + 18 * glow}%, transparent ${16 + 40 * glow}%)`}}/>
-    {t >= I.open && <AbsoluteFill style={{maskImage: `radial-gradient(circle at 50% 50%, #000 ${reveal * 85}%, transparent ${reveal * 85 + 25}%)`,
-      WebkitMaskImage: `radial-gradient(circle at 50% 50%, #000 ${reveal * 85}%, transparent ${reveal * 85 + 25}%)`}}>
-      <Seq name="hand18" src={hsrc} z={hs} filter="saturate(.75) contrast(1.06) brightness(.95)"/>
-      <AbsoluteFill style={{background: '#1a6f9a', mixBlendMode: 'soft-light', opacity: .45}}/>
-    </AbsoluteFill>}
-    <div style={{position: 'absolute', left: 0, right: 0, top: CY + 380, textAlign: 'center', fontFamily: 'Inter', fontWeight: 500, fontSize: 18,
-      letterSpacing: 12, color: 'rgba(255,255,255,.85)', opacity: tag}}>2018</div>
-  </AbsoluteFill>;
-  // floor flight
-  const tip = ss(span(t, I.click - .08, I.click + .75));
-  const up = io(span(t, I.up, T.a0));
-  const pitch = 64 * tip - 26 * up;
-  const camZ = -1500 * eout(span(t, I.click, I.click + 1.3)), camY = 260 * tip - 200 * up;
-  const fly = FLY * Math.pow(span(t, I.click + .15, T.a0), 1.6);
-  const sn = Math.sin(pitch * Math.PI / 180);
-  const white = ein(span(t, I.up + .25, T.a0));
-  const tiles: React.ReactElement[] = [];
-  for (let k = ROWS - 1; k >= 0; k--) for (let c = -4; c <= 4; c++) {
-    const top = -k * TROW + fly, Yt = top - CY, Yb = top + H - CY;
-    if (Yt * sn + camZ > PERS - 60) continue;                 // passed under the camera
-    const depth = -(Yb * sn + camZ);
-    const op = (1 - span(depth, 4500, 13500)) * (k === 0 && c === 0 ? 1 : ss(span(t, I.click + .05, I.click + .45)));
-    if (op <= 0) continue;
-    const hand = k === 0 && c === 0;
-    tiles.push(<div key={`${k}_${c}`} style={{position: 'absolute', left: c * TCOL, top: -k * TROW, width: W, height: H, opacity: op, overflow: 'hidden', borderRadius: 10 * tip}}>
-      <Img src={hand ? seq('hand18', 3.96) : C(`years/y${yrRow(k)}.jpg`)} style={{width: W, height: H, filter: hand ? 'saturate(.75) contrast(1.06) brightness(.95)' : 'saturate(.8) contrast(1.04)'}}/>
-      {!hand && <div style={{position: 'absolute', inset: 0, background: '#cfe0f5', mixBlendMode: 'soft-light', opacity: .4}}/>}
-      {c === 0 && k > 0 && yrRow(k) !== yrRow(k - 1) && <div style={{position: 'absolute', left: 40, bottom: 26, fontFamily: 'Inter', fontWeight: 600, fontSize: 120,
-        letterSpacing: 30, color: 'rgba(255,255,255,.92)', textShadow: '0 0 30px rgba(0,0,0,.35)'}}>{yrRow(k)}</div>}
-    </div>);
+  const cur = MONT.filter(m => t >= m[0]).pop();
+  const track = mix(48, 22, eout(span(t, I.tag, I.tag + 1.4)));
+  const yrA = span(t, I.tag, I.tag + .8) * (1 - span(t, 7.8, 7.88));
+  const label = <div style={{position: 'absolute', left: 0, right: 0, top: H - 210, textAlign: 'center', fontFamily: 'Cormorant Garamond', fontWeight: 300,
+    fontSize: 78, letterSpacing: track, paddingLeft: track, color: '#fff', opacity: .92 * yrA, textShadow: '0 2px 34px rgba(0,0,0,.55)'}}>{cur ? cur[1] : 2018}</div>;
+  if (t < I.click) {
+    // a hairline of light opens into a slit; the 2018 webcam is behind it, over-exposed, settling
+    const line = eout(span(t, I.glow, I.open)), lineA = span(t, I.glow, I.glow + .08) * (1 - span(t, I.open + .1, I.open + .5));
+    const slit = eout(span(t, I.open, I.open + .65)), mh = slit * 62;
+    const expo = 1 + 1.3 * (1 - eout(span(t, I.open, I.open + .8)));
+    const hs = mix(1.12, 1, span(t, I.open, I.click)) * (1 + .1 * ein(span(t, I.click - .14, I.click)));
+    const hsrc = Math.min(3.96, Math.max(0, t - I.open) * 1.25);
+    const mask = `linear-gradient(180deg, transparent ${50 - mh - 7}%, #000 ${50 - mh}%, #000 ${50 + mh}%, transparent ${50 + mh + 7}%)`;
+    const edge = (y: number) => <div style={{position: 'absolute', left: CX - line * W * .6, width: line * W * 1.2, top: y - 1, height: 2, opacity: lineA,
+      background: 'linear-gradient(90deg, transparent, rgba(235,246,255,.95) 25%, #fff 50%, rgba(235,246,255,.95) 75%, transparent)'}}/>;
+    return <AbsoluteFill style={{background: '#000'}}>
+      {t >= I.open && <AbsoluteFill style={{maskImage: mask, WebkitMaskImage: mask}}>
+        <Seq name="hand18" src={hsrc} z={hs} filter={`saturate(.75) contrast(1.06) brightness(${.95 * expo})`}/>
+        <AbsoluteFill style={{background: '#1a6f9a', mixBlendMode: 'soft-light', opacity: .45}}/>
+      </AbsoluteFill>}
+      {lineA > 0 && <>
+        <div style={{position: 'absolute', left: CX - line * W * .75, width: line * W * 1.5, top: CY - 90, height: 180, opacity: lineA * (1 - slit * .7), mixBlendMode: 'screen',
+          background: 'radial-gradient(ellipse at 50% 50%, rgba(150,205,255,.5) 0%, rgba(60,120,200,.15) 35%, transparent 68%)'}}/>
+        {edge(CY - mh / 100 * H)}{edge(CY + mh / 100 * H)}
+      </>}
+      {label}
+    </AbsoluteFill>;
   }
-  return <AbsoluteFill style={{background: 'linear-gradient(180deg, #e9eef6 0%, #f7f9fc 45%, #eef2f8 100%)', overflow: 'hidden'}}>
-    <AbsoluteFill style={{transformOrigin: `${CX}px ${CY}px`, transformStyle: 'preserve-3d',
-      transform: `perspective(${PERS}px) translateY(${camY}px) translateZ(${camZ}px) rotateX(${pitch}deg) translateY(${fly}px)`}}>
-      {tiles}
-    </AbsoluteFill>
-    {/* horizon haze */}
-    <AbsoluteFill style={{background: 'linear-gradient(180deg, rgba(247,249,252,.95) 0%, rgba(247,249,252,0) 16%)', opacity: tip}}/>
-    <AbsoluteFill style={{background: '#fff', opacity: white}}/>
+  const c = cur!, ci = MONT.indexOf(c);
+  const z = montZ(t), v = Math.log(montZ(t + 1 / FPS) / z);
+  const n = v > .012 ? 6 : 1;
+  const flash = Math.exp(-(t - c[0]) / .08);
+  const white = ein(span(t, 7.9, T.a0));
+  const lx = hash(ci * 3.3 + 1) > .5 ? 12 : 88;
+  return <AbsoluteFill style={{background: '#000', overflow: 'hidden'}}>
+    {Array.from({length: n}, (_, j) => <Img key={j} src={C(`years/y${c[1]}.jpg`)} style={{position: 'absolute', left: 0, top: 0, width: W, height: H,
+      transformOrigin: `${CX}px ${EYE_Y}px`, transform: `scale(${z * Math.exp(-v * 1.8 * j / Math.max(1, n - 1))})`, opacity: 1 / (j + 1),
+      filter: `saturate(.72) contrast(1.08) brightness(${1 + .65 * flash})`}}/>)}
+    <AbsoluteFill style={{background: '#1a6f9a', mixBlendMode: 'soft-light', opacity: .4}}/>
+    <AbsoluteFill style={{background: `radial-gradient(circle at ${lx}% 35%, rgba(255,190,120,.85) 0%, rgba(255,120,60,.3) 25%, transparent 55%)`,
+      mixBlendMode: 'screen', opacity: .55 * flash}}/>
+    <AbsoluteFill style={{background: 'radial-gradient(ellipse at 50% 42%, transparent 45%, rgba(0,0,0,.55) 100%)'}}/>
+    {label}
+    <AbsoluteFill style={{background: '#f4f7ff', opacity: white}}/>
   </AbsoluteFill>;
 };
 
@@ -304,7 +365,7 @@ export const Shong07: React.FC = () => {
 
   // ===== A→B: white → navy → near-black =====
   const navy = span(t, T.navy, T.dark);
-  const fieldCol = rgb([244, 247, 255], [10, 22, 52], ss(span(t, T.navy, 10.7)));
+  const fieldCol = rgb([244, 247, 255], [10, 22, 52], ss(span(t, T.navy, 10.4)));
   const fieldDark = ss(span(t, 10.7, T.dark + .3));
   const vig = 1 - ss(span(t, T.navy, 11.0));                            // vignette radius closes from the edges
   const showField = t >= T.navy - .05 && t < T.iris + .3;
@@ -390,13 +451,7 @@ export const Shong07: React.FC = () => {
       <AbsoluteFill style={{background: `radial-gradient(circle at 50% 46%, transparent ${mix(4, 85, vig)}%, rgba(6,14,38,1) ${mix(40, 140, vig)}%)`, opacity: ss(span(t, T.navy, 10.2))}}/>
       <AbsoluteFill style={{background: '#010208', opacity: fieldDark * .92}}/>
     </AbsoluteFill>}
-    {t > 8.65 && t < T.iris + .2 && <Shards t={t} navy={navy}/>}
-    {t > T.iris - .5 && t < T.iris + .16 && (() => {
-      const u = span(t, T.iris - .5, T.iris + .1), sz = 200 * Math.pow(40, Math.pow(u, 1.6)), rot = 20 + 70 * u;
-      return <div style={{position: 'absolute', left: CX - sz / 2, top: CY * .96 - sz * .4, width: sz, height: sz * .8, mixBlendMode: 'screen',
-        opacity: span(t, T.iris - .5, T.iris - .38) * (1 - span(t, T.iris + .04, T.iris + .16)), transform: `rotate(${rot}deg)`, clipPath: `polygon(${POLY[0]})`,
-        background: `linear-gradient(${rot}deg, rgba(235,248,255,.95), rgba(40,170,190,.45) 45%, rgba(220,245,255,.85))`}}/>;
-    })()}
+    {t > GEM0 - .03 && t < T.iris + .25 && <Gem t={t} aSrcB={aSrcB} plqZ={plqZ} p0={[p0x, p0y]}/>}
     {/* two glints that become the eye's catchlights */}
     {t > T.dark - .3 && t < T.iris + .9 && <>
       <Glint x={mix(CX - 380, p0x - p0r * .35, gl)} y={mix(CY - 160, p0y - p0r * .4, gl)} a={catchA} s={mix(140, 26, gl)}/>
