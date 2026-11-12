@@ -25,7 +25,7 @@ jobs:
         run: |
           RANGE=$(python3 -c "import os;n=765;k=min(int(os.environ['K']),40);i=int(os.environ['I']);print(f'{n*i//k}-{n*(i+1)//k-1}')")
           npx remotion render src/index.tsx Shong07 "out/chunk_$(printf %02d $I).mp4" --frames="$RANGE" --muted \
-            --gl=swangle --concurrency=$(nproc) --scale=1.125 --codec=h264 --crf=10 --pixel-format=yuv420p 2>&1 | tr '\r' '\n' | grep -vE '^\s*$' | tail -3
+            --gl=swangle --concurrency=$(nproc) --scale=1.2 --codec=h264 --crf=10 --pixel-format=yuv420p 2>&1 | tr '\r' '\n' | grep -vE '^\s*$' | tail -3
           ls -la out/chunk_*.mp4
       - uses: actions/upload-artifact@v4
         with: {name: 'chunk-${{ matrix.i }}', path: out/chunk_*.mp4, if-no-files-found: error, retention-days: 3, compression-level: 0}
@@ -42,11 +42,11 @@ jobs:
         run: |
           mkdir -p out; ls chunks/chunk_*.mp4 | sort -V | sed "s|^|file '$PWD/|;s|$|'|" > list.txt; cat list.txt | wc -l
           ffmpeg -nostdin -v error -y -f concat -safe 0 -i list.txt -i public/s07/audio.wav -filter_complex \
-            "[0:v]format=gbrp,split[a][b];[b]curves=all='0/0 0.6/0.05 1/1',gblur=sigma=22.5,colorchannelmixer=rr=1.1:gg=.95:bb=.85[h];[a][h]blend=all_mode=screen:all_opacity=.45,format=yuv420p[v]" \
-            -map "[v]" -map 1:a -c:v libx264 -crf 10 -preset slow -c:a aac -b:a 320k -ar 48000 -shortest -movflags +faststart out/final_master_2160x1215.mp4
-          ffprobe -v error -show_entries format=duration:stream=width,height,nb_frames -of compact out/final_master_2160x1215.mp4
+            "[0:v]format=gbrp,split[a][b];[b]curves=all='0/0 0.6/0.05 1/1',gblur=sigma=24,colorchannelmixer=rr=1.1:gg=.95:bb=.85[h];[a][h]blend=all_mode=screen:all_opacity=.45,scale=2160:1216:flags=lanczos,format=yuv420p[v]" \
+            -map "[v]" -map 1:a -c:v libx264 -crf 10 -preset slow -c:a aac -b:a 320k -ar 48000 -shortest -movflags +faststart out/final_master_2160x1216.mp4
+          ffprobe -v error -show_entries format=duration:stream=width,height,nb_frames -of compact out/final_master_2160x1216.mp4
       - uses: actions/upload-artifact@v4
-        with: {name: master-2160x1215, path: out/final_master_2160x1215.mp4, compression-level: 0, retention-days: 30}
+        with: {name: master-2160x1216, path: out/final_master_2160x1216.mp4, compression-level: 0, retention-days: 30}
       - run: bash tools/finish_tiktok.sh
       - uses: actions/upload-artifact@v4
         with: {name: tiktok-4k-patched, path: out/final_tiktok_4k_patched.mp4, compression-level: 0, retention-days: 30}

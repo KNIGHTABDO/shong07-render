@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Shong07 master (2160x1215, 16:9, 24 fps) -> TikTok uploads, centred on a 9:16 black canvas, kept at 24 fps
+# Shong07 master (2160x1216, 16:9, 24 fps) -> TikTok uploads, centred on a 9:16 black canvas, kept at 24 fps
 set -euo pipefail
 O="$(cd "$(dirname "$0")/.." && pwd)/out"
-M="$O/final_master_2160x1215.mp4"
+M="$O/final_master_2160x1216.mp4"
 ENH="unsharp=lx=13:ly=13:la=0.4:cx=5:cy=5:ca=0,cas=strength=0.7,curves=m='0/0 0.25/0.235 0.75/0.775 1/1',vibrance=intensity=0.15"
 VF4="scale=2160:1216:flags=lanczos,$ENH,pad=2160:3840:0:(oh-ih)/2:black,setsar=1,format=yuv420p"
 VF1="scale=1080:608:flags=lanczos,$ENH,pad=1080:1920:0:(oh-ih)/2:black,setsar=1,format=yuv420p"
